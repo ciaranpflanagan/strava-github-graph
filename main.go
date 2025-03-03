@@ -55,6 +55,15 @@ func saveActivities(body string) []Activity {
         log.Fatal(err)
     }
 
+    data, err := json.Marshal(activities)
+    if err != nil {
+        log.Fatal(err)
+    }
+    err = ioutil.WriteFile("./data/output.json", data, 0644)
+    if err != nil {
+        log.Fatal(err)
+    }
+
     return activities
 }
 
