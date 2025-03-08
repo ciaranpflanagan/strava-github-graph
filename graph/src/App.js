@@ -3,49 +3,62 @@ import React, { useEffect, useState } from 'react';
 
 const Graph = ({ data }) => {
     const getColor = (value) => {
-      const shades = [
-        '#b8f5c4', '#c6e48b', '#7bc96f', '#239a3b', '#196127',
-        '#0f4c1f', '#0a3a17', '#062a10', '#041d0b', '#98c902'
-      ];
+        if (value === -1) return '#ffffff'; // White for -1
+        if (value === 0) return '#F2F2F2'; // Light grey for 0
 
-      // Get index based on length, anything over 100k will be the last shade, 10k increments for the rest
-      const index = Math.floor(value / 10000);
-      if (index >= shades.length) {
-        // Might have to adjust this to be a different color, or add more shades
-        return shades[shades.length - 1];
-      }
-      return shades[index];
-    };
+        const shades = [
+            '#b8f5c4', '#c6e48b', '#7bc96f', '#239a3b', '#196127',
+            '#0f4c1f', '#0a3a17', '#062a10', '#041d0b', '#98c902'
+        ];
 
-    // Todo: Remove this function, it's only for testing
-    const getRandomNumber = (min, max) => {
-        min *= 10000;
-        max *= 10000;
-
-        return Math.floor(Math.random() * (max - min + 1)) + min;
+        let index = Math.floor(value / 1000);
+        index = Math.floor(index / shades.length);
+        console.log('Value:', value, 'Index:', index);
+        if (index >= shades.length) {
+            return shades[shades.length - 1];
+        }
+        return shades[index];
     };
 
     const rows = [];
-    for (let i = 0; i < 7; i++) {
-        rows.push(data.slice(i * 10, (i + 1) * 10));
+    const weeks = 52 + 1; // 52 weeks + 1 to include all days of the year (First week isn't entirely 2025)
+    const days = 7;
+    const currentDate = new Date('2024-12-30');
+    let dataIndex = 0;
+    for (let i = 0; i < weeks; i++) {
+        rows[i] = [];
+        for (let j = 0; j < days; j++) {
+            const squareDate = new Date(currentDate);
 
-        // Push remaining empty rows, todo: fix this with actual date data
-        let remaining = 52 - (data.length % 7);
-        for (let j = 0; j < remaining; j++) {
-            rows[i].push({ Distance: 0 });
+            if (squareDate.getFullYear() !== 2025) {
+                rows[i][j] = { distance: -1, Date: squareDate.toISOString().split('T')[0] };
+                currentDate.setDate(currentDate.getDate() + 1);
+                continue;
+            }
+
+            let activity = data.find((act) => new Date(act.start_date).toISOString().split('T')[0] === squareDate.toISOString().split('T')[0]);
+            if (activity) {
+                console.log('Found activity:', activity);
+                rows[i][j] = { distance: activity.distance, Date: squareDate.toISOString().split('T')[0] };
+            } else {
+                console.log('No activity found for date:', squareDate.toISOString().split('T')[0]);
+                rows[i][j] = { distance: 0, Date: squareDate.toISOString().split('T')[0] };
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
         }
     }
 
     return (
         <div className="graph">
             {rows.map((row, rowIndex) => (
-                <div key={rowIndex} className="row">
+                <div key={rowIndex} className="row" style={{ flexDirection: 'column' }}>
                     {row.map((activity, colIndex) => (
                         <div
                             key={colIndex}
                             className="activity"
-                            style={{ backgroundColor: getColor(activity.Distance) }}
-                            // style={{ backgroundColor: getColor(getRandomNumber(0, 10)) }}
+                            style={{ backgroundColor: getColor(activity.distance) }}
+                            alt={activity.Date + ':' + activity.distance + 'km'}
                         ></div>
                     ))}
                 </div>
@@ -59,6 +72,7 @@ function App() {
     useEffect(() => {
         fetch(process.env.PUBLIC_URL + '/test.json')
             .then((response) => response.json())
+            .then((data) => data.sort((a, b) => new Date(a.start_date) - new Date(b.start_date)))
             .then((data) => setData(data))
             .catch((error) => console.error('Error fetching data:', error));
     }, []);
@@ -66,7 +80,8 @@ function App() {
     return (
         <div className="App" style={{ width: '100%' }}>
             <header className="App-header">
-                <Graph data={data} />
+                <h1>Strava Github Style Activity Graph</h1>
+                {data.length > 0 ? <Graph data={data} /> : <p>Loading...</p>}
             </header>
         </div>
     );
