@@ -49,7 +49,7 @@ func getAccessToken() string {
     data.Set("client_id", clientID)
     data.Set("client_secret", clientSecret)
     data.Set("code", authCode)
-    data.Set("grant_type", "authorization_code") // can only be used once -> need to actually get this from the user
+    data.Set("grant_type", "authorization_code")
 
     resp, err := http.PostForm(urlStr, data)
     if err != nil {
@@ -68,18 +68,19 @@ func getAccessToken() string {
         log.Fatal("Error parsing token response:", err)
     }
 
-    // Obviously, this is not a good idea to print the access token in production code
-    fmt.Println("Access Token:", tokenResponse.AccessToken)
+    // log
+    fmt.Println("Access Token:", tokenResponse.AccessToken) // For debugging purposes
     return tokenResponse.AccessToken
 }
 
-func getActivities() {
-    // accessToken := getAccessToken() // Fetch the access token dynamically
+func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
+    accessToken := getAccessToken()
     var body string
     if test {
         data, err := ioutil.ReadFile("./data/test.json")
         if err != nil {
-            log.Fatal(err)
+            http.Error(w, "Error reading test data", http.StatusInternalServerError)
+            return
         }
         body = string(data)
     } else {
@@ -88,14 +89,11 @@ func getActivities() {
 
         req.Header.Set("Authorization", "Bearer "+accessToken)
 
-        // Print the request URL
-        fmt.Println("Request URL:", req.URL.String())
-
         client := &http.Client{}
         resp, err := client.Do(req)
         if err != nil || resp.StatusCode != 200 {
-            fmt.Println("Error:", resp)
-            log.Fatal(err)
+            http.Error(w, "Error fetching activities", http.StatusInternalServerError)
+            return
         }
         defer resp.Body.Close()
 
@@ -103,14 +101,12 @@ func getActivities() {
         body = string(responseBody)
     }
 
-    // Print the response body
-    fmt.Println("Response Body:", body)
     activities := saveActivities(body)
-    fmt.Println(activities)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(activities)
 }
 
 func saveActivities(body string) []Activity {
-    // Define a struct with only the fields you want
     var activities []struct {
         Name       string  `json:"name"`
         Distance   float64 `json:"distance"`
@@ -118,13 +114,11 @@ func saveActivities(body string) []Activity {
         StartDate  string  `json:"start_date"`
     }
 
-    // Unmarshal the JSON response into the custom struct
     err := json.Unmarshal([]byte(body), &activities)
     if err != nil {
         log.Fatal("Error unmarshalling JSON:", err)
     }
 
-    // Convert the filtered data into the desired Activity struct
     var filteredActivities []Activity
     for _, act := range activities {
         filteredActivities = append(filteredActivities, Activity{
@@ -135,22 +129,9 @@ func saveActivities(body string) []Activity {
         })
     }
 
-    // Marshal the filtered activities into JSON
-    data, err := json.Marshal(filteredActivities)
-    if err != nil {
-        log.Fatal("Error marshalling filtered activities:", err)
-    }
-
-    // Save the filtered JSON to a file
-    err = ioutil.WriteFile("./data/output.json", data, 0644)
-    if err != nil {
-        log.Fatal("Error writing to file:", err)
-    }
-
     return filteredActivities
 }
 
-// Helper function to parse the date string into a time.Time object
 func parseDate(dateStr string) time.Time {
     parsedDate, err := time.Parse(time.RFC3339, dateStr)
     if err != nil {
@@ -161,5 +142,7 @@ func parseDate(dateStr string) time.Time {
 }
 
 func main() {
-    getActivities()
+    http.HandleFunc("/activities", getActivitiesHandler)
+    fmt.Println("Server is running on http://localhost:8080")
+    log.Fatal(http.ListenAndServe(":8080", nil))
 }
