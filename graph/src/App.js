@@ -24,7 +24,6 @@ const Graph = ({ data }) => {
     const weeks = 52 + 1; // 52 weeks + 1 to include all days of the year (First week isn't entirely 2025)
     const days = 7;
     const currentDate = new Date('2024-12-30');
-    let dataIndex = 0;
     for (let i = 0; i < weeks; i++) {
         rows[i] = [];
         for (let j = 0; j < days; j++) {
