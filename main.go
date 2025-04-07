@@ -10,6 +10,8 @@ import (
     "os"
     "time"
     "github.com/joho/godotenv"
+    "github.com/gorilla/mux"
+    "path/filepath"
 )
 
 type Activity struct {
@@ -106,6 +108,34 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(activities)
 }
 
+type spaHandler struct {
+	staticPath string
+	indexPath  string
+}
+
+func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Join internally call path.Clean to prevent directory traversal
+	path := filepath.Join(h.staticPath, r.URL.Path)
+
+	// check whether a file exists or is a directory at the given path
+	fi, err := os.Stat(path)
+	if os.IsNotExist(err) || fi.IsDir() {
+		// file does not exist or path is a directory, serve index.html
+		http.ServeFile(w, r, filepath.Join(h.staticPath, h.indexPath))
+		return
+	}
+
+	if err != nil {
+		// if we got an error (that wasn't that the file doesn't exist) stating the
+		// file, return a 500 internal server error and stop
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+	}
+
+	// otherwise, use http.FileServer to serve the static file
+	http.FileServer(http.Dir(h.staticPath)).ServeHTTP(w, r)
+}
+
 func saveActivities(body string) []Activity {
     var activities []struct {
         Name       string  `json:"name"`
@@ -142,7 +172,15 @@ func parseDate(dateStr string) time.Time {
 }
 
 func main() {
-    http.HandleFunc("/activities", getActivitiesHandler)
+    router := mux.NewRouter()
+
+    // Serve React web app
+    spa := spaHandler{staticPath: "./graph/build", indexPath: "index.html"}
+    router.PathPrefix("/").Handler(spa)
+
+    // Existing endpoint
+    router.HandleFunc("/activities", getActivitiesHandler)
+
     fmt.Println("Server is running on http://localhost:8080")
-    log.Fatal(http.ListenAndServe(":8080", nil))
+    log.Fatal(http.ListenAndServe(":8080", router))
 }
