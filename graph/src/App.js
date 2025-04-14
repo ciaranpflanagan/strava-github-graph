@@ -1,5 +1,6 @@
 import './App.css';
 import React, { useEffect, useState } from 'react';
+import StravaLogin from './components/StravaLogin';
 
 const Graph = ({ data }) => {
     const getColor = (value) => {
@@ -80,7 +81,7 @@ function App() {
         <div className="App" style={{ width: '100%' }}>
             <header className="App-header">
                 <h1>Strava Github Style Activity Graph</h1>
-                {data.length > 0 ? <Graph data={data} /> : <p>Loading...</p>}
+                {data.length > 0 ? <Graph data={data} /> : <StravaLogin />}
             </header>
         </div>
     );
