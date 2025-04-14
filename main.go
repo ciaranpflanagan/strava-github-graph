@@ -76,6 +76,7 @@ func getAccessToken() string {
 }
 
 func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
+    // TODO: Update this to use the access token from the request
     accessToken := getAccessToken()
     var body string
     if test {
@@ -178,8 +179,11 @@ func main() {
     spa := spaHandler{staticPath: "./graph/build", indexPath: "index.html"}
     router.PathPrefix("/").Handler(spa)
 
+    // Serve static assets like images
+    router.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./graph/public"))))
+
     // Existing endpoint
-    router.HandleFunc("/activities", getActivitiesHandler)
+    router.HandleFunc("/api/activities", getActivitiesHandler)
 
     fmt.Println("Server is running on http://localhost:8080")
     log.Fatal(http.ListenAndServe(":8080", router))

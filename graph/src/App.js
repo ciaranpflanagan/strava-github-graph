@@ -1,6 +1,8 @@
 import './App.css';
-import React, { useEffect, useState } from 'react';
 import StravaLogin from './components/StravaLogin';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from "react-router-dom";
+import axios from "axios";
 
 const Graph = ({ data }) => {
     const getColor = (value) => {
@@ -69,13 +71,27 @@ const Graph = ({ data }) => {
 
 function App() {
     const [data, setData] = useState([]); 
+    const [searchParams] = useSearchParams();
+    
     useEffect(() => {
-        fetch(process.env.PUBLIC_URL + '/test.json')
+        fetch(process.env.PUBLIC_URL + '/tests.json')
             .then((response) => response.json())
             .then((data) => data.sort((a, b) => new Date(a.start_date) - new Date(b.start_date)))
             .then((data) => setData(data))
             .catch((error) => console.error('Error fetching data:', error));
-    }, []);
+
+        const codeFromParams = searchParams.get("code");
+        console.log("Code from URL:", codeFromParams);
+        if (codeFromParams) {
+            axios.post("http://localhost:8080/api/activities", { code: codeFromParams })
+            .then(res => {
+                console.log("Access token response:", res.data);
+            })
+            .catch(err => {
+                console.error("Token exchange failed:", err);
+            });
+        }
+    }, [searchParams]);
 
     return (
         <div className="App" style={{ width: '100%' }}>
