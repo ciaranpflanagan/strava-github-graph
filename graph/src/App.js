@@ -10,8 +10,8 @@ const Graph = ({ data }) => {
         if (value === 0) return '#F2F2F2'; // Light grey for 0
 
         const shades = [
-            '#b8f5c4', '#c6e48b', '#7bc96f', '#239a3b', '#196127',
-            '#0f4c1f', '#0a3a17', '#062a10', '#041d0b', '#98c902'
+            '#b8f5c4', '#c6e48b', '#7bc96f', '#98c902', '#239a3b',
+            '#196127', '#0f4c1f', '#0a3a17', '#062a10', '#041d0b', 
         ];
 
         let index = Math.floor(value / 1000);
@@ -34,20 +34,19 @@ const Graph = ({ data }) => {
 
             if (squareDate.getFullYear() !== 2025) {
                 rows[i][j] = { distance: -1, Date: squareDate.toISOString().split('T')[0] };
-                currentDate.setDate(currentDate.getDate() + 1);
+                currentDate.setUTCDate(currentDate.getUTCDate() + 1);
                 continue;
             }
 
-            let activity = data.find((act) => new Date(act.start_date).toISOString().split('T')[0] === squareDate.toISOString().split('T')[0]);
-            if (activity) {
-                console.log('Found activity:', activity);
-                rows[i][j] = { distance: activity.distance, Date: squareDate.toISOString().split('T')[0] };
-            } else {
-                console.log('No activity found for date:', squareDate.toISOString().split('T')[0]);
-                rows[i][j] = { distance: 0, Date: squareDate.toISOString().split('T')[0] };
+            rows[i][j] = { total_distance: 0, Date: squareDate.toISOString().split('T')[0] };
+            let foundActivities = data.filter((act) => new Date(act.start_date).toISOString().split('T')[0] === squareDate.toISOString().split('T')[0]);
+            if (foundActivities.length === 0) console.log('No activities found for date:', squareDate.toISOString().split('T')[0]);
+            for (let jj = 0; jj < foundActivities.length; jj++) {
+                console.log('Found activity on', squareDate.toISOString().split('T')[0], ':', foundActivities[jj]);
+                rows[i][j].total_distance += foundActivities[jj].distance;
             }
 
-            currentDate.setDate(currentDate.getDate() + 1);
+            currentDate.setUTCDate(currentDate.getUTCDate() + 1);
         }
     }
 
@@ -59,8 +58,8 @@ const Graph = ({ data }) => {
                         <div
                             key={colIndex}
                             className="activity"
-                            style={{ backgroundColor: getColor(activity.distance) }}
-                            alt={activity.Date + ':' + activity.distance + 'km'}
+                            style={{ backgroundColor: getColor(activity.total_distance) }}
+                            alt={activity.Date + ':' + (activity.total_distance / 1000) + 'km'}
                         ></div>
                     ))}
                 </div>
@@ -74,21 +73,17 @@ function App() {
     const [searchParams] = useSearchParams();
     
     useEffect(() => {
-        fetch(process.env.PUBLIC_URL + '/tests.json')
-            .then((response) => response.json())
-            .then((data) => data.sort((a, b) => new Date(a.start_date) - new Date(b.start_date)))
-            .then((data) => setData(data))
-            .catch((error) => console.error('Error fetching data:', error));
-
         const codeFromParams = searchParams.get("code");
         console.log("Code from URL:", codeFromParams);
         if (codeFromParams) {
-            axios.post("http://localhost:8080/api/activities", { code: codeFromParams })
+            axios.post("/api/activities", { code: codeFromParams }) // Use relative path
             .then(res => {
-                console.log("Access token response:", res.data);
+                console.log("Activities:", res.data);
+                const sortedData = res.data.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                setData(sortedData);
             })
             .catch(err => {
-                console.error("Token exchange failed:", err);
+                console.error("Getting activities failed:", err);
             });
         }
     }, [searchParams]);

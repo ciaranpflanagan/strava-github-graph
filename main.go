@@ -45,12 +45,12 @@ func init() {
     }
 }
 
-func getAccessToken() string {
+func getAccessTokenFromCode(code string) string {
     urlStr := "https://www.strava.com/oauth/token"
     data := url.Values{}
     data.Set("client_id", clientID)
     data.Set("client_secret", clientSecret)
-    data.Set("code", authCode)
+    data.Set("code", code)
     data.Set("grant_type", "authorization_code")
 
     resp, err := http.PostForm(urlStr, data)
@@ -60,6 +60,7 @@ func getAccessToken() string {
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
+        body, _ := ioutil.ReadAll(resp.Body)
         log.Fatalf("Failed to fetch access token: %s", resp.Status)
     }
 
@@ -70,43 +71,47 @@ func getAccessToken() string {
         log.Fatal("Error parsing token response:", err)
     }
 
-    // log
-    fmt.Println("Access Token:", tokenResponse.AccessToken) // For debugging purposes
     return tokenResponse.AccessToken
 }
 
 func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
-    // TODO: Update this to use the access token from the request
-    accessToken := getAccessToken()
-    var body string
-    if test {
-        data, err := ioutil.ReadFile("./data/test.json")
-        if err != nil {
-            http.Error(w, "Error reading test data", http.StatusInternalServerError)
-            return
-        }
-        body = string(data)
-    } else {
-        url := "https://www.strava.com/api/v3/athlete/activities"
-        req, _ := http.NewRequest("GET", url, nil)
-
-        req.Header.Set("Authorization", "Bearer "+accessToken)
-
-        client := &http.Client{}
-        resp, err := client.Do(req)
-        if err != nil || resp.StatusCode != 200 {
-            http.Error(w, "Error fetching activities", http.StatusInternalServerError)
-            return
-        }
-        defer resp.Body.Close()
-
-        responseBody, _ := ioutil.ReadAll(resp.Body)
-        body = string(responseBody)
+    // Parse the JSON body
+    var requestBody struct {
+        Code string `json:"code"`
+    }
+    err := json.NewDecoder(r.Body).Decode(&requestBody)
+    if err != nil {
+        http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+        return
     }
 
-    activities := saveActivities(body)
+    // Extract the 'code' parameter
+    code := requestBody.Code
+    if code == "" {
+        http.Error(w, "Missing 'code' parameter", http.StatusBadRequest)
+        return
+    }
+
+    accessToken := getAccessTokenFromCode(code)
+    
+    // var body string
+    url := "https://www.strava.com/api/v3/athlete/activities"
+    req, _ := http.NewRequest("GET", url, nil)
+
+    req.Header.Set("Authorization", "Bearer "+accessToken)
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil || resp.StatusCode != 200 {
+        http.Error(w, "Error fetching activities", http.StatusInternalServerError)
+        return
+    }
+    defer resp.Body.Close()
+
+    responseBody, _ := ioutil.ReadAll(resp.Body)
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(activities)
+    w.Write(responseBody)
+    return
 }
 
 type spaHandler struct {
@@ -175,15 +180,15 @@ func parseDate(dateStr string) time.Time {
 func main() {
     router := mux.NewRouter()
 
+    // API routes
+    router.HandleFunc("/api/activities", getActivitiesHandler).Methods("POST")
+
     // Serve React web app
     spa := spaHandler{staticPath: "./graph/build", indexPath: "index.html"}
     router.PathPrefix("/").Handler(spa)
 
     // Serve static assets like images
     router.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./graph/public"))))
-
-    // Existing endpoint
-    router.HandleFunc("/api/activities", getActivitiesHandler)
 
     fmt.Println("Server is running on http://localhost:8080")
     log.Fatal(http.ListenAndServe(":8080", router))
