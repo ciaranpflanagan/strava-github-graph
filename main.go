@@ -61,7 +61,8 @@ func getAccessTokenFromCode(code string) string {
 
     if resp.StatusCode != http.StatusOK {
         body, _ := ioutil.ReadAll(resp.Body)
-        log.Fatalf("Failed to fetch access token: %s", resp.Status)
+        log.Println("Failed to fetch access token: %s, Response body: %s", resp.Status, string(body))
+        return ""
     }
 
     var tokenResponse TokenResponse
@@ -93,6 +94,10 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     accessToken := getAccessTokenFromCode(code)
+    if accessToken == "" {
+        http.Error(w, "Failed to retrieve access token", http.StatusUnauthorized)
+        return
+    }
     
     // var body string
     url := "https://www.strava.com/api/v3/athlete/activities"
