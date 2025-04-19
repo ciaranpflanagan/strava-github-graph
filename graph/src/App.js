@@ -91,7 +91,7 @@ function App() {
     return (
         <div className="App" style={{ width: '100%' }}>
             <header className="App-header">
-                <h1>Strava Github Style Activity Graph</h1>
+                <h1>Strava Github Style Activity Graph 2025</h1>
                 {data.length > 0 ? <Graph data={data} /> : <StravaLogin />}
             </header>
         </div>

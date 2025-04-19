@@ -100,7 +100,8 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
     }
     
     // var body string
-    url := "https://www.strava.com/api/v3/athlete/activities"
+    epochStartOf2025 := 1735689600
+    url := fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?after=%d&per_page=%d", epochStartOf2025, 200)
     req, _ := http.NewRequest("GET", url, nil)
 
     req.Header.Set("Authorization", "Bearer "+accessToken)
