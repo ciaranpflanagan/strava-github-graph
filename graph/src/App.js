@@ -9,18 +9,29 @@ const Graph = ({ data }) => {
         if (value === -1) return '#ffffff'; // White for -1
         if (value === 0) return '#F2F2F2'; // Light grey for 0
 
+        const distances = data.map(activity => activity.distance);
+        const maxDistance = Math.max(...distances) / 1000;
+        const minDistance = Math.min(...distances) / 1000;
+        console.log('Max Distance:', maxDistance, 'Min Distance:', minDistance);
+
         const shades = [
-            '#b8f5c4', '#c6e48b', '#7bc96f', '#98c902', '#239a3b',
-            '#196127', '#0f4c1f', '#0a3a17', '#062a10', '#041d0b', 
+            "#ebf7e4",
+            "#d6f3c0",
+            "#b7e99c",
+            "#94d76a",
+            "#6cc644",
+            "#57a537",
+            "#41882a",
+            "#2e6a1e",
+            "#1d4d12",
+            "#0f3709"
         ];
 
-        let index = Math.floor(value / 1000);
-        index = Math.floor(index / shades.length);
-        console.log('Value:', value, 'Index:', index);
-        if (index >= shades.length) {
-            return shades[shades.length - 1];
-        }
-        return shades[index];
+        const range = maxDistance - minDistance;
+        const normalizedValue = ((value / 1000) - minDistance) / range;
+        console.log('Normalized Value:', normalizedValue, 'Range:', range, 'Value:', value/1000);
+        const shadeIndex = Math.floor(normalizedValue * (shades.length - 1));
+        return shades[shadeIndex];
     };
 
     const rows = [];
