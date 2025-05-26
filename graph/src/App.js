@@ -1,10 +1,11 @@
 import './App.css';
 import StravaLogin from './components/StravaLogin';
+import Options from './components/Options';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from "react-router-dom";
 import axios from "axios";
 
-const Graph = ({ data }) => {
+const Graph = ({ data, options }) => {
     const getColor = (value) => {
         if (value === -1) return '#ffffff'; // White for -1
         if (value === 0) return '#F2F2F2'; // Light grey for 0
@@ -50,7 +51,19 @@ const Graph = ({ data }) => {
             }
 
             rows[i][j] = { total_distance: 0, Date: squareDate.toISOString().split('T')[0] };
-            let foundActivities = data.filter((act) => new Date(act.start_date).toISOString().split('T')[0] === squareDate.toISOString().split('T')[0]);
+            let foundActivities;
+            if (options.sportType !== "all") {
+                foundActivities = data.filter(
+                    (act) =>
+                        new Date(act.start_date).toISOString().split('T')[0] === squareDate.toISOString().split('T')[0] &&
+                        act.sport_type === options.sportType
+                );
+            } else {
+                foundActivities = data.filter(
+                    (act) =>
+                        new Date(act.start_date).toISOString().split('T')[0] === squareDate.toISOString().split('T')[0]
+                );
+            }
             if (foundActivities.length === 0) console.log('No activities found for date:', squareDate.toISOString().split('T')[0]);
             for (let jj = 0; jj < foundActivities.length; jj++) {
                 console.log('Found activity on', squareDate.toISOString().split('T')[0], ':', foundActivities[jj]);
@@ -99,11 +112,22 @@ function App() {
         }
     }, [searchParams]);
 
+    // State for options
+    const [options, setOptions] = useState({ sportType: "Run" });
+    const handleOptionsChange = (newOptions) => {
+        setOptions(prev => ({ ...prev, ...newOptions }));
+    };
+
     return (
         <div className="App" style={{ width: '100%' }}>
             <header className="App-header">
                 <h1>Strava Github Style Activity Graph 2025</h1>
-                {data.length > 0 ? <Graph data={data} /> : <StravaLogin />}
+                <Options
+                    options={options}
+                    sportTypeOptions={["All", "Run", "Ride", "Swim"]}
+                    onChange={handleOptionsChange}
+                />
+                {data.length > 0 ? <Graph data={data} options={options} /> : <StravaLogin />}
             </header>
         </div>
     );
