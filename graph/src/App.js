@@ -85,7 +85,7 @@ function App() {
     }, [searchParams]);
 
     // State for options
-    const [options, setOptions] = useState({ sportType: "Run" });
+    const [options, setOptions] = useState({ sportType: "Ride" });
     const handleOptionsChange = (newOptions) => {
         setOptions(prev => ({ ...prev, ...newOptions }));
     };
