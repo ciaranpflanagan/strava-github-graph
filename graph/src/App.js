@@ -4,37 +4,9 @@ import Options from './components/Options';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from "react-router-dom";
 import axios from "axios";
+import { getColor } from './utils/helpers';
 
 const Graph = ({ data, options }) => {
-    const getColor = (value) => {
-        if (value === -1) return '#ffffff'; // White for -1
-        if (value === 0) return '#F2F2F2'; // Light grey for 0
-
-        const distances = data.map(activity => activity.distance);
-        const maxDistance = Math.max(...distances) / 1000;
-        const minDistance = Math.min(...distances) / 1000;
-        console.log('Max Distance:', maxDistance, 'Min Distance:', minDistance);
-
-        const shades = [
-            "#ebf7e4",
-            "#d6f3c0",
-            "#b7e99c",
-            "#94d76a",
-            "#6cc644",
-            "#57a537",
-            "#41882a",
-            "#2e6a1e",
-            "#1d4d12",
-            "#0f3709"
-        ];
-
-        const range = maxDistance - minDistance;
-        const normalizedValue = ((value / 1000) - minDistance) / range;
-        console.log('Normalized Value:', normalizedValue, 'Range:', range, 'Value:', value/1000);
-        const shadeIndex = Math.floor(normalizedValue * (shades.length - 1));
-        return shades[shadeIndex];
-    };
-
     const rows = [];
     const weeks = 52 + 1; // 52 weeks + 1 to include all days of the year (First week isn't entirely 2025)
     const days = 7;
@@ -70,7 +42,7 @@ const Graph = ({ data, options }) => {
                 rows[i][j].total_distance += foundActivities[jj].distance;
             }
 
-            currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+            currentDate.setUTCDate(currentDate.getUTCDate() + 1);            
         }
     }
 
@@ -82,7 +54,7 @@ const Graph = ({ data, options }) => {
                         <div
                             key={colIndex}
                             className="activity"
-                            style={{ backgroundColor: getColor(activity.total_distance) }}
+                            style={{ backgroundColor: getColor(activity.total_distance, data, options) }}
                             alt={activity.Date + ':' + (activity.total_distance / 1000) + 'km'}
                         ></div>
                     ))}
