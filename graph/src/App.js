@@ -97,7 +97,7 @@ function App() {
     return (
         <div className="w-screen min-h-screen flex flex-col items-center bg-gradient-to-br from-slate-50 to-blue-100">
             <header className="mt-10 bg-white rounded-3xl shadow-2xl p-10 max-w-5xl w-full flex flex-col items-center">
-                <h1 className="text-3xl font-bold text-gray-800 mb-6 tracking-wide">Strava Github Style Activity Graph 2025</h1>
+                <h1 className="text-3xl font-bold text-gray-800 mb-6 tracking-wide">Strava Commits</h1>
                 <Options
                     options={options}
                     sportTypeOptions={["All", "Run", "Ride", "Swim"]}
