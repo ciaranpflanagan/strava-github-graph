@@ -24,7 +24,7 @@ const Graph = ({ data, options }) => {
 
             rows[i][j] = { total_distance: 0, Date: squareDate.toISOString().split('T')[0] };
             let foundActivities;
-            if (options.sportType !== "all") {
+            if (options.sportType.toLowerCase() !== "all") {
                 foundActivities = data.filter(
                     (act) =>
                         new Date(act.start_date).toISOString().split('T')[0] === squareDate.toISOString().split('T')[0] &&

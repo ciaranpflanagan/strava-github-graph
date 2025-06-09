@@ -1,3 +1,4 @@
+// Pretty sure this helper is useless
 export function getSportDivider(sportType) {
     switch (sportType.toLowerCase()) {
         case "ride":
@@ -7,7 +8,7 @@ export function getSportDivider(sportType) {
         case "run":
         case "walk":
         case "hike":
-            return 100;
+            return 1000;
     }
 }
 
@@ -16,7 +17,7 @@ export function getColor (value, data, options) {
     if (value === 0) return '#F2F2F2'; // Light grey for 0
 
     let activities = data;
-    if (options.sportType !== "all") {
+    if (options.sportType.toLowerCase() !== "all") {
         activities = activities.filter(act => act.sport_type === options.sportType);
     }
     const divider = getSportDivider(options.sportType);
