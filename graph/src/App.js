@@ -67,11 +67,14 @@ const Graph = ({ data, options }) => {
 function App() {
     const [data, setData] = useState([]); 
     const [searchParams] = useSearchParams();
+    const [loading, setLoading] = useState(false);
     
     useEffect(() => {
         const codeFromParams = searchParams.get("code");
         console.log("Code from URL:", codeFromParams);
         if (codeFromParams) {
+            setLoading(true);
+
             axios.post("/api/activities", { code: codeFromParams }) // Use relative path
             .then(res => {
                 console.log("Activities:", res.data);
@@ -80,7 +83,8 @@ function App() {
             })
             .catch(err => {
                 console.error("Getting activities failed:", err);
-            });
+            })
+            .finally(() => setLoading(false));
         }
     }, [searchParams]);
 
@@ -100,7 +104,7 @@ function App() {
                     onChange={handleOptionsChange}
                 />
                 <Graph data={data} options={options} />
-                {data.length === 0 && <StravaLogin />}
+                {data.length === 0 && <StravaLogin loading={loading} />}
             </header>
         </div>
     );

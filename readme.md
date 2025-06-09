@@ -13,11 +13,13 @@ go run main.go
 
 ## Docker
 ```console
-# Azure login
+# 1. Start Docker
+
+# 2. Azure login
 az login
 az acr login --name stravaGithubGraphAcr
 
-# Build & push docker image
+# 3. Build & push docker image
 docker buildx build --platform linux/amd64 -t stravagithubgraphacr.azurecr.io/strava-github-graph:latest .
 docker push stravagithubgraphacr.azurecr.io/strava-github-graph:latest
 ```
