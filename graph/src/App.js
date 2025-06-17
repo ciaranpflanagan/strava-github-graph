@@ -68,6 +68,12 @@ function App() {
     const [data, setData] = useState([]); 
     const [searchParams] = useSearchParams();
     const [loading, setLoading] = useState(false);
+
+    // State for options
+    const [options, setOptions] = useState({ sportType: "Ride", year: "2025" });
+    const handleOptionsChange = (newOptions) => {
+        setOptions(prev => ({ ...prev, ...newOptions }));
+    };
     
     useEffect(() => {
         const codeFromParams = searchParams.get("code");
@@ -75,7 +81,10 @@ function App() {
         if (codeFromParams) {
             setLoading(true);
 
-            axios.post("/api/activities", { code: codeFromParams }) // Use relative path
+            axios.post("/api/activities", {
+                code: codeFromParams,
+                year: options.year,
+            })
             .then(res => {
                 console.log("Activities:", res.data);
                 const sortedData = res.data.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
@@ -86,13 +95,7 @@ function App() {
             })
             .finally(() => setLoading(false));
         }
-    }, [searchParams]);
-
-    // State for options
-    const [options, setOptions] = useState({ sportType: "Ride" });
-    const handleOptionsChange = (newOptions) => {
-        setOptions(prev => ({ ...prev, ...newOptions }));
-    };
+    }, [searchParams, options]);
 
     return (
         <div className="w-screen min-h-screen flex flex-col items-center bg-gradient-to-br from-slate-50 to-blue-100">
