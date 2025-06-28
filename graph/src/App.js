@@ -66,6 +66,7 @@ const Graph = ({ data, options }) => {
 
 function App() {
     const [data, setData] = useState([]); 
+    const [username, setUsername] = useState("");
     const [searchParams] = useSearchParams();
     const [loading, setLoading] = useState(false);
 
@@ -86,9 +87,9 @@ function App() {
                 year: options.year,
             })
             .then(res => {
-                console.log("Activities:", res.data);
-                const sortedData = res.data.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                const sortedData = res.data.activities.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
                 setData(sortedData);
+                setUsername(res.data.username);
             })
             .catch(err => {
                 console.error("Getting activities failed:", err);
@@ -100,7 +101,7 @@ function App() {
     return (
         <div className="w-screen min-h-screen flex flex-col items-center bg-gradient-to-br from-slate-50 to-blue-100">
             <header className="mt-10 bg-white rounded-3xl shadow-2xl p-10 max-w-5xl w-full flex flex-col items-center">
-                <h1 className="text-3xl font-bold text-gray-800 mb-6 tracking-wide">Strava Commits</h1>
+                <h1 className="text-3xl font-bold text-gray-800 mb-6 tracking-wide">Strava Commits {username && ( <span>- {username}</span>)}</h1>
                 <Options
                     options={options}
                     sportTypeOptions={["All", "Run", "Ride", "Swim"]}

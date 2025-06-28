@@ -23,7 +23,14 @@ type Activity struct {
 }
 
 type TokenResponse struct {
-	AccessToken string `json:"access_token"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresAt    int64  `json:"expires_at"`
+	ExpiresIn    int    `json:"expires_in"`
+	Athlete      struct {
+		ID       int    `json:"id"`
+		Username string `json:"username"`
+	} `json:"athlete"`
 }
 
 var clientID string
@@ -47,7 +54,7 @@ func init() {
 	}
 }
 
-func getAccessTokenFromCode(code string) string {
+func getAccessTokenFromCode(code string) []byte {
 	urlStr := "https://www.strava.com/oauth/token"
 	data := url.Values{}
 	data.Set("client_id", clientID)
@@ -61,20 +68,17 @@ func getAccessTokenFromCode(code string) string {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
-		log.Println("Failed to fetch access token: %s, Response body: %s", resp.Status, string(body))
-		return ""
-	}
-
-	var tokenResponse TokenResponse
-	body, _ := ioutil.ReadAll(resp.Body)
-	err = json.Unmarshal(body, &tokenResponse)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Error parsing token response:", err)
+		log.Fatal("Error reading response body:", err)
 	}
 
-	return tokenResponse.AccessToken
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Failed to fetch access token: %s, Response body: %s", resp.Status, string(body))
+		return body
+	}
+
+	return body
 }
 
 func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +100,14 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken := getAccessTokenFromCode(code)
+	tokenResponseBytes := getAccessTokenFromCode(code)
+	var tokenResp TokenResponse
+	err = json.Unmarshal(tokenResponseBytes, &tokenResp)
+	if err != nil {
+		http.Error(w, "Failed to parse access token response", http.StatusInternalServerError)
+		return
+	}
+	accessToken := tokenResp.AccessToken
 	if accessToken == "" {
 		http.Error(w, "Failed to retrieve access token", http.StatusUnauthorized)
 		return
@@ -135,7 +146,16 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	// Append athlete username to the response
 	responseBody, _ := ioutil.ReadAll(resp.Body)
+	var activities []map[string]interface{}
+	json.Unmarshal(responseBody, &activities)
+	response := map[string]interface{}{
+		"activities": activities,
+		"username":   tokenResp.Athlete.Username,
+	}
+	responseBody, _ = json.Marshal(response)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(responseBody)
 	return
@@ -167,32 +187,6 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// otherwise, use http.FileServer to serve the static file
 	http.FileServer(http.Dir(h.staticPath)).ServeHTTP(w, r)
-}
-
-func saveActivities(body string) []Activity {
-	var activities []struct {
-		Name       string  `json:"name"`
-		Distance   float64 `json:"distance"`
-		MovingTime int     `json:"moving_time"`
-		StartDate  string  `json:"start_date"`
-	}
-
-	err := json.Unmarshal([]byte(body), &activities)
-	if err != nil {
-		log.Fatal("Error unmarshalling JSON:", err)
-	}
-
-	var filteredActivities []Activity
-	for _, act := range activities {
-		filteredActivities = append(filteredActivities, Activity{
-			Name:       act.Name,
-			Distance:   act.Distance,
-			MovingTime: act.MovingTime,
-			StartDate:  parseDate(act.StartDate),
-		})
-	}
-
-	return filteredActivities
 }
 
 func parseDate(dateStr string) time.Time {
