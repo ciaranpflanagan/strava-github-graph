@@ -36,9 +36,9 @@ const Graph = ({ data, options }) => {
                         new Date(act.start_date).toISOString().split('T')[0] === squareDate.toISOString().split('T')[0]
                 );
             }
-            if (foundActivities.length === 0) console.log('No activities found for date:', squareDate.toISOString().split('T')[0]);
+            // if (foundActivities.length === 0) console.log('No activities found for date:', squareDate.toISOString().split('T')[0]);
             for (let jj = 0; jj < foundActivities.length; jj++) {
-                console.log('Found activity on', squareDate.toISOString().split('T')[0], ':', foundActivities[jj]);
+                // console.log('Found activity on', squareDate.toISOString().split('T')[0], ':', foundActivities[jj]);
                 rows[i][j].total_distance += foundActivities[jj].distance;
             }
 

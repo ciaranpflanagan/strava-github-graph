@@ -153,6 +153,11 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"activities": activities,
 		"username":   tokenResp.Athlete.Username,
+
+		// TODO: Remove these in production
+		"refreshToken": tokenResp.RefreshToken,
+		"expiresAt":    tokenResp.ExpiresAt,
+		"accessToken":  accessToken,
 	}
 	responseBody, _ = json.Marshal(response)
 

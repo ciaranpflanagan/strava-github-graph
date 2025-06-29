@@ -24,7 +24,7 @@ export function getColor (value, data, options) {
     const distances = activities.map(act => act.distance);
     const maxDistance = Math.max(...distances) / divider;
     const minDistance = Math.min(...distances) / divider;
-    console.log('Max Distance:', maxDistance, 'Min Distance:', minDistance);
+    // console.log('Max Distance:', maxDistance, 'Min Distance:', minDistance);
 
     const shades = [
         "#ebf7e4",
@@ -41,7 +41,7 @@ export function getColor (value, data, options) {
 
     const range = maxDistance - minDistance;
     const normalizedValue = ((value / divider) - minDistance) / range;
-    console.log('Normalized Value:', normalizedValue, 'Range:', range, 'Value:', value/divider);
+    // console.log('Normalized Value:', normalizedValue, 'Range:', range, 'Value:', value/divider);
     const shadeIndex = Math.floor(normalizedValue * (shades.length - 1));
     return shades[shadeIndex];
 };
