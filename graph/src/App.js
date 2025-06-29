@@ -10,13 +10,13 @@ const Graph = ({ data, options }) => {
     const rows = [];
     const weeks = 52 + 1; // 52 weeks + 1 to include all days of the year (First week isn't entirely 2025)
     const days = 7;
-    const currentDate = new Date('2024-12-30');
+    const currentDate = new Date('2023-12-30');
     for (let i = 0; i < weeks; i++) {
         rows[i] = [];
         for (let j = 0; j < days; j++) {
             const squareDate = new Date(currentDate);
 
-            if (squareDate.getFullYear() !== 2025) {
+            if (squareDate.getFullYear() !== 2024) {
                 rows[i][j] = { distance: -1, Date: squareDate.toISOString().split('T')[0] };
                 currentDate.setUTCDate(currentDate.getUTCDate() + 1);
                 continue;
@@ -67,6 +67,7 @@ const Graph = ({ data, options }) => {
 function App() {
     const [data, setData] = useState([]); 
     const [username, setUsername] = useState("");
+    const [athleteId, setAthleteId] = useState(null);
     const [searchParams] = useSearchParams();
     const [loading, setLoading] = useState(false);
 
@@ -79,6 +80,26 @@ function App() {
     useEffect(() => {
         const codeFromParams = searchParams.get("code");
         console.log("Code from URL:", codeFromParams);
+
+        // If athleteId is already set, then we don't use first access token
+        if (athleteId) {
+            setLoading(true);
+            axios.post("/api/activities/year", {
+                year: options.year,
+                athleteId: athleteId,
+            })
+            .then(res => {
+                const sortedData = res.data.activities.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                setData(sortedData);
+            })
+            .catch(err => {
+                console.error("Getting activities failed:", err);
+            })
+            .finally(() => setLoading(false));
+            return;
+        }
+
+        // If we have a code from the URL, we fetch activities for the first time
         if (codeFromParams) {
             setLoading(true);
 
@@ -90,6 +111,7 @@ function App() {
                 const sortedData = res.data.activities.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
                 setData(sortedData);
                 setUsername(res.data.username);
+                setAthleteId(res.data.athleteId);
             })
             .catch(err => {
                 console.error("Getting activities failed:", err);

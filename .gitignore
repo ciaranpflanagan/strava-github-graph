@@ -1,3 +1,5 @@
 .env
+.DS_Store
 /data/test.json
 /graph/public/test.json
+strava_tokens.db

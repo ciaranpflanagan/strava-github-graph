@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Activity struct {
@@ -81,6 +83,29 @@ func getAccessTokenFromCode(code string) []byte {
 	return body
 }
 
+func storeTokenData(storeTokenData int, refreshToken string, expiresAt int64, accessToken string) error {
+	db, err := sql.Open("sqlite3", "./strava_tokens.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tokens (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		athlete_id INTEGER,
+		refresh_token TEXT,
+		expires_at INTEGER,
+		access_token TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	)`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`INSERT INTO tokens (athlete_id, refresh_token, expires_at, access_token) VALUES (?, ?, ?, ?)`, storeTokenData, refreshToken, expiresAt, accessToken)
+	return err
+}
+
 func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse the JSON body
 	var requestBody struct {
@@ -111,6 +136,12 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
 	if accessToken == "" {
 		http.Error(w, "Failed to retrieve access token", http.StatusUnauthorized)
 		return
+	}
+
+	// Store tokens in SQLite DB
+	err = storeTokenData(tokenResp.Athlete.ID, tokenResp.RefreshToken, tokenResp.ExpiresAt, accessToken)
+	if err != nil {
+		log.Println("Failed to store token data:", err)
 	}
 
 	// Determine year and set after/before epochs
@@ -153,11 +184,84 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"activities": activities,
 		"username":   tokenResp.Athlete.Username,
+		"athleteId":  tokenResp.Athlete.ID,
+	}
+	responseBody, _ = json.Marshal(response)
 
-		// TODO: Remove these in production
-		"refreshToken": tokenResp.RefreshToken,
-		"expiresAt":    tokenResp.ExpiresAt,
-		"accessToken":  accessToken,
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(responseBody)
+	return
+}
+
+func getActivitiesYearHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse the JSON body
+	var requestBody struct {
+		AthleteId int    `json:"athleteId"`
+		Year      string `json:"year"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		return
+	}
+
+	// Get access token from DB
+	// TODO: add check for refresh and refresh token if needed
+	db, err := sql.Open("sqlite3", "./strava_tokens.db")
+	if err != nil {
+		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+	var accessToken string
+	err = db.QueryRow("SELECT access_token FROM tokens WHERE athlete_id = ? ORDER BY created_at DESC LIMIT 1", requestBody.AthleteId).Scan(&accessToken)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "No access token found for athlete", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Error querying database", http.StatusInternalServerError)
+		return
+	}
+
+	// Determine year and set after/before epochs
+	var after, before int64
+	if requestBody.Year == "2024" {
+		// 2024-01-01T00:00:00Z = 1704067200
+		// 2024-12-31T23:59:59Z = 1735689599
+		after = 1704067200
+		before = 1735689599
+	} else {
+		// Default to 2025 and beyond
+		// 2025-01-01T00:00:00Z = 1735689600
+		after = 1735689600
+		before = 0 // 0 means no upper bound
+	}
+
+	var url string
+	if before > 0 {
+		url = fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?after=%d&before=%d&per_page=%d", after, before, 200)
+	} else {
+		url = fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?after=%d&per_page=%d", after, 200)
+	}
+
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		http.Error(w, "Error fetching activities", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Append athlete username to the response
+	responseBody, _ := ioutil.ReadAll(resp.Body)
+	var activities []map[string]interface{}
+	json.Unmarshal(responseBody, &activities)
+	response := map[string]interface{}{
+		"activities": activities,
 	}
 	responseBody, _ = json.Marshal(response)
 
@@ -208,6 +312,7 @@ func main() {
 
 	// API routes
 	router.HandleFunc("/api/activities", getActivitiesHandler).Methods("POST")
+	router.HandleFunc("/api/activities/year", getActivitiesYearHandler).Methods("POST")
 
 	// Serve React web app
 	spa := spaHandler{staticPath: "./graph/build", indexPath: "index.html"}
