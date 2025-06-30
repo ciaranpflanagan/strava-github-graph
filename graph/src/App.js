@@ -1,6 +1,7 @@
 import './index.css';
 import StravaLogin from './components/StravaLogin';
 import Options from './components/Options';
+import LoadingSpinner from './components/LoadingSpinner';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from "react-router-dom";
 import axios from "axios";
@@ -145,7 +146,8 @@ function App() {
                     onChange={handleOptionsChange}
                 />
                 <Graph data={data} options={options} />
-                {data.length === 0 && <StravaLogin loading={loading} />}
+                {(data.length === 0 && !loading) && <StravaLogin />}
+                {loading && <LoadingSpinner />}
             </header>
         </div>
     );
