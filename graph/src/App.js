@@ -7,24 +7,42 @@ import axios from "axios";
 import { getColor } from './utils/helpers';
 
 const Graph = ({ data, options }) => {
+    const year = parseInt(options.year, 10) || new Date().getFullYear();
+    // Find the first Monday on or before Jan 1st of the selected year
+    const jan1 = new Date(Date.UTC(year, 0, 1));
+    const dayOfWeek = jan1.getUTCDay(); // 0=Sunday, 1=Monday, ...
+    // Calculate offset: if Jan 1 is not Monday, go back to previous Monday
+    const offset = dayOfWeek === 1 ? 0 : (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+    const graphStartDate = new Date(jan1);
+    graphStartDate.setUTCDate(jan1.getUTCDate() - offset);
+
+    // Find the last day of the year
+    const dec31 = new Date(Date.UTC(year, 11, 31));
+    // Find the last Sunday on or after Dec 31st
+    const lastDayOfWeek = dec31.getUTCDay();
+    const endOffset = lastDayOfWeek === 0 ? 0 : 7 - lastDayOfWeek;
+    const graphEndDate = new Date(dec31);
+    graphEndDate.setUTCDate(dec31.getUTCDate() + endOffset);
+
+    // Calculate number of weeks
+    const days = Math.round((graphEndDate - graphStartDate) / (1000 * 60 * 60 * 24)) + 1;
+    const weeks = Math.ceil(days / 7);
+
     const rows = [];
-    const weeks = 52 + 1; // 52 weeks + 1 to include all days of the year (First week isn't entirely 2025)
-    const days = 7;
-    const currentDate = new Date('2023-12-30');
+    const currentDate = new Date(graphStartDate);
     for (let i = 0; i < weeks; i++) {
         rows[i] = [];
-        for (let j = 0; j < days; j++) {
+        for (let j = 0; j < 7; j++) {
             const squareDate = new Date(currentDate);
-
-            if (squareDate.getFullYear() !== 2024) {
+            // If not in the selected year, mark as -1
+            if (squareDate.getUTCFullYear() !== year) {
                 rows[i][j] = { distance: -1, Date: squareDate.toISOString().split('T')[0] };
                 currentDate.setUTCDate(currentDate.getUTCDate() + 1);
                 continue;
             }
-
             rows[i][j] = { total_distance: 0, Date: squareDate.toISOString().split('T')[0] };
             let foundActivities;
-            if (options.sportType.toLowerCase() !== "all") {
+            if (options.sportType && options.sportType.toLowerCase() !== "all") {
                 foundActivities = data.filter(
                     (act) =>
                         new Date(act.start_date).toISOString().split('T')[0] === squareDate.toISOString().split('T')[0] &&
@@ -36,13 +54,10 @@ const Graph = ({ data, options }) => {
                         new Date(act.start_date).toISOString().split('T')[0] === squareDate.toISOString().split('T')[0]
                 );
             }
-            // if (foundActivities.length === 0) console.log('No activities found for date:', squareDate.toISOString().split('T')[0]);
             for (let jj = 0; jj < foundActivities.length; jj++) {
-                // console.log('Found activity on', squareDate.toISOString().split('T')[0], ':', foundActivities[jj]);
                 rows[i][j].total_distance += foundActivities[jj].distance;
             }
-
-            currentDate.setUTCDate(currentDate.getUTCDate() + 1);            
+            currentDate.setUTCDate(currentDate.getUTCDate() + 1);
         }
     }
 

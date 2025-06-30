@@ -145,19 +145,7 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Determine year and set after/before epochs
-	var after, before int64
-	if requestBody.Year == "2024" {
-		// 2024-01-01T00:00:00Z = 1704067200
-		// 2024-12-31T23:59:59Z = 1735689599
-		after = 1704067200
-		before = 1735689599
-	} else {
-		// Default to 2025 and beyond
-		// 2025-01-01T00:00:00Z = 1735689600
-		after = 1735689600
-		before = 0 // 0 means no upper bound
-	}
-	// log.Printf("Fetching activities with after=%d, before=%d", after, before)
+	after, before := getYearsEpoc(requestBody.Year)
 
 	var url string
 	if before > 0 {
@@ -225,18 +213,7 @@ func getActivitiesYearHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Determine year and set after/before epochs
-	var after, before int64
-	if requestBody.Year == "2024" {
-		// 2024-01-01T00:00:00Z = 1704067200
-		// 2024-12-31T23:59:59Z = 1735689599
-		after = 1704067200
-		before = 1735689599
-	} else {
-		// Default to 2025 and beyond
-		// 2025-01-01T00:00:00Z = 1735689600
-		after = 1735689600
-		before = 0 // 0 means no upper bound
-	}
+	after, before := getYearsEpoc(requestBody.Year)
 
 	var url string
 	if before > 0 {
@@ -267,6 +244,31 @@ func getActivitiesYearHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(responseBody)
+	return
+}
+
+func getYearsEpoc(year string) (after int64, before int64) {
+	switch year {
+	case "2025":
+		// 2025-01-01T00:00:00Z = 1735689600
+		// 2025-12-31T23:59:59Z = 1767225599
+		after = 1735689600
+		before = 1767225599
+	case "2024":
+		// 2024-01-01T00:00:00Z = 1704067200
+		// 2024-12-31T23:59:59Z = 1735689599
+		after = 1704067200
+		before = 1735689599
+	case "2023":
+		// 2023-01-01T00:00:00Z = 1672531200
+		// 2023-12-31T23:59:59Z = 1704067199
+		after = 1672531200
+		before = 1704067199
+	default:
+		// Default to 2025 and beyond
+		after = 1735689600
+		before = 0 // 0 means no upper bound
+	}
 	return
 }
 
