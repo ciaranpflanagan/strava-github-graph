@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	_ "github.com/denisenkom/go-mssqldb"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
@@ -39,6 +40,9 @@ var clientID string
 var clientSecret string
 var authCode string
 
+var dbConnStr string
+var dbType string
+
 const test = false
 
 func init() {
@@ -50,6 +54,14 @@ func init() {
 	clientID = os.Getenv("STRAVA_CLIENT_ID")
 	clientSecret = os.Getenv("STRAVA_CLIENT_SECRET")
 	authCode = os.Getenv("STRAVA_AUTH_CODE")
+
+	dbConnStr = os.Getenv("DB_CONN_STR")
+	dbType = os.Getenv("DB_TYPE") // "sqlserver" for Azure SQL, "sqlite3" for local
+	if dbConnStr == "" {
+		// Default to local SQLite for dev
+		dbConnStr = "./strava_tokens.db"
+		dbType = "sqlite3"
+	}
 
 	if clientID == "" || clientSecret == "" || authCode == "" {
 		log.Fatal("Missing required environment variables: STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_AUTH_CODE")
@@ -83,26 +95,43 @@ func getAccessTokenFromCode(code string) []byte {
 	return body
 }
 
-func storeTokenData(storeTokenData int, refreshToken string, expiresAt int64, accessToken string) error {
-	db, err := sql.Open("sqlite3", "./strava_tokens.db")
+func storeTokenData(athleteId int, refreshToken string, expiresAt int64, accessToken string) error {
+	db, err := sql.Open(dbType, dbConnStr)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tokens (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		athlete_id INTEGER,
-		refresh_token TEXT,
-		expires_at INTEGER,
-		access_token TEXT,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	)`)
+	var createTableStmt, insertStmt string
+	if dbType == "sqlserver" {
+		createTableStmt = `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='tokens' and xtype='U')
+		CREATE TABLE tokens (
+			id INT IDENTITY(1,1) PRIMARY KEY,
+			athlete_id INT,
+			refresh_token NVARCHAR(255),
+			expires_at BIGINT,
+			access_token NVARCHAR(255),
+			created_at DATETIME DEFAULT GETDATE()
+		)`
+		insertStmt = `INSERT INTO tokens (athlete_id, refresh_token, expires_at, access_token) VALUES (@p1, @p2, @p3, @p4)`
+	} else {
+		createTableStmt = `CREATE TABLE IF NOT EXISTS tokens (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			athlete_id INTEGER,
+			refresh_token TEXT,
+			expires_at INTEGER,
+			access_token TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`
+		insertStmt = `INSERT INTO tokens (athlete_id, refresh_token, expires_at, access_token) VALUES (?, ?, ?, ?)`
+	}
+
+	_, err = db.Exec(createTableStmt)
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec(`INSERT INTO tokens (athlete_id, refresh_token, expires_at, access_token) VALUES (?, ?, ?, ?)`, storeTokenData, refreshToken, expiresAt, accessToken)
+	_, err = db.Exec(insertStmt, athleteId, refreshToken, expiresAt, accessToken)
 	return err
 }
 
@@ -195,14 +224,18 @@ func getActivitiesYearHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get access token from DB
 	// TODO: add check for refresh and refresh token if needed
-	db, err := sql.Open("sqlite3", "./strava_tokens.db")
+	var accessToken string
+	db, err := sql.Open(dbType, dbConnStr)
 	if err != nil {
 		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
 		return
 	}
 	defer db.Close()
-	var accessToken string
-	err = db.QueryRow("SELECT access_token FROM tokens WHERE athlete_id = ? ORDER BY created_at DESC LIMIT 1", requestBody.AthleteId).Scan(&accessToken)
+	if dbType == "sqlserver" {
+		err = db.QueryRow("SELECT TOP 1 access_token FROM tokens WHERE athlete_id = @p1 ORDER BY created_at DESC", requestBody.AthleteId).Scan(&accessToken)
+	} else {
+		err = db.QueryRow("SELECT access_token FROM tokens WHERE athlete_id = ? ORDER BY created_at DESC LIMIT 1", requestBody.AthleteId).Scan(&accessToken)
+	}
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "No access token found for athlete", http.StatusNotFound)
