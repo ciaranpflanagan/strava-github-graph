@@ -95,7 +95,6 @@ function App() {
     
     useEffect(() => {
         const codeFromParams = searchParams.get("code");
-        console.log("Code from URL:", codeFromParams);
 
         // If athleteId is already set, then we don't use first access token
         if (athleteId) {
