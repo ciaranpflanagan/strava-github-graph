@@ -43,8 +43,6 @@ var authCode string
 var dbConnStr string
 var dbType string
 
-const test = false
-
 func init() {
 	err := godotenv.Load()
 	if err != nil {
@@ -189,6 +187,7 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
+		log.Println("Error fetching activities:", err)
 		http.Error(w, "Error fetching activities", http.StatusInternalServerError)
 		return
 	}
@@ -223,7 +222,6 @@ func getActivitiesYearHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get access token from DB
-	// TODO: add check for refresh and refresh token if needed
 	var accessToken string
 	db, err := sql.Open(dbType, dbConnStr)
 	if err != nil {
@@ -297,6 +295,21 @@ func getYearsEpoc(year string) (after int64, before int64) {
 		// 2023-12-31T23:59:59Z = 1704067199
 		after = 1672531200
 		before = 1704067199
+	case "2022":
+		// 2022-01-01T00:00:00Z = 1640995200
+		// 2022-12-31T23:59:59Z = 1672531199
+		after = 1640995200
+		before = 1672531199
+	case "2021":
+		// 2021-01-01T00:00:00Z = 1609459200
+		// 2021-12-31T23:59:59Z = 1640995199
+		after = 1609459200
+		before = 1640995199
+	case "2020":
+		// 2020-01-01T00:00:00Z = 1577836800
+		// 2020-12-31T23:59:59Z = 1609459199
+		after = 1577836800
+		before = 1609459199
 	default:
 		// Default to 2025 and beyond
 		after = 1735689600
