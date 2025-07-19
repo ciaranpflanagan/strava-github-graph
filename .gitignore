@@ -3,3 +3,5 @@
 /data/test.json
 /graph/public/test.json
 strava_tokens.db
+/graph/playwright-report
+/graph/test-results

@@ -5,6 +5,7 @@ const Options = ({ options, sportTypeOptions, onChange }) => {
         <div className="mb-8 flex items-center gap-4">
             <label className="font-medium text-gray-700">Sport Type:</label>
                 <select
+                    id="sport-type-select"
                     className="rounded-lg border border-gray-300 px-4 py-2 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                     value={options.sportType}
                     onChange={e => onChange({ sportType: e.target.value })}
