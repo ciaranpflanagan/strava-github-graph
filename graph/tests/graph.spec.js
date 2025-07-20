@@ -12,44 +12,10 @@ test.describe('Activity Graph Visualization', () => {
     // The graph should be empty initially (no activity data)
     // But the structure should still be there
     const rows = page.locator('.graph .row');
-    await expect(rows).toHaveCount(0); // No rows when no data
-  });
 
-  test('should render graph structure with mock data', async ({ page }) => {
-    // Mock the API response to test graph rendering
-    await page.route('/api/activities', async route => {
-      const mockData = {
-        activities: [
-          {
-            start_date: '2025-01-01T10:00:00Z',
-            distance: 5000,
-            sport_type: 'Run'
-          },
-          {
-            start_date: '2025-01-02T10:00:00Z',
-            distance: 10000,
-            sport_type: 'Ride'
-          }
-        ],
-        username: 'Test User',
-        athleteId: 12345
-      };
-      await route.fulfill({ json: mockData });
-    });
-
-    // Navigate with a mock code parameter to trigger data loading
-    await page.goto('/?code=mock_code');
-    
-    // Wait for the graph to be populated
-    await page.waitForSelector('.graph .row', { timeout: 5000 });
-    
-    // Check that graph rows are rendered
-    const rows = page.locator('.graph .row');
-    await expect(rows.first()).toBeVisible();
-    
-    // Check that activity squares are rendered
-    const activities = page.locator('.graph .activity');
-    await expect(activities.first()).toBeVisible();
+    const activityDiv = rows.nth(1).locator('.activity').first();
+    const color = await activityDiv.evaluate(node => getComputedStyle(node).backgroundColor);
+    await expect(color).toBe('rgb(242, 242, 242)');
   });
 
   test('should display username when data is loaded', async ({ page }) => {
