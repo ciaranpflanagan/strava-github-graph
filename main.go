@@ -174,38 +174,60 @@ func getActivitiesHandler(w http.ResponseWriter, r *http.Request) {
 	// Determine year and set after/before epochs
 	after, before := getYearsEpoc(requestBody.Year)
 
+	var allActivities []map[string]interface{}
 	var url string
-	if before > 0 {
-		url = fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?after=%d&before=%d&per_page=%d", after, before, 200)
-	} else {
-		url = fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?after=%d&per_page=%d", after, 200)
+	for {
+		if before > 0 {
+			url = fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?after=%d&before=%d&per_page=%d", after, before, 200)
+		} else {
+			url = fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?after=%d&per_page=%d", after, 200)
+		}
+
+		req, _ := http.NewRequest("GET", url, nil)
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil || resp.StatusCode != 200 {
+			log.Println("Error fetching activities:", err)
+			http.Error(w, "Error fetching activities", http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+
+		// Append athlete username to the response
+		responseBody, _ := ioutil.ReadAll(resp.Body)
+		var activities []map[string]interface{}
+		json.Unmarshal(responseBody, &activities)
+
+		allActivities = append(allActivities, activities...)
+
+		if len(activities) < 200 {
+			break // No more pages
+		}
+		// Get the epoch of the last activity for next page
+		lastActivity := activities[len(activities)-1]
+		if startDate, ok := lastActivity["start_date"].(string); ok {
+			parsedTime, err := time.Parse(time.RFC3339, startDate)
+			if err == nil {
+				after = parsedTime.Unix()
+			} else {
+				break // Can't parse, stop
+			}
+		} else {
+			break // Can't find start_date, stop
+		}
 	}
 
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != 200 {
-		log.Println("Error fetching activities:", err)
-		http.Error(w, "Error fetching activities", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Append athlete username to the response
-	responseBody, _ := ioutil.ReadAll(resp.Body)
-	var activities []map[string]interface{}
-	json.Unmarshal(responseBody, &activities)
 	response := map[string]interface{}{
-		"activities": activities,
+		"activities": allActivities,
 		"username":   tokenResp.Athlete.Username,
 		"athleteId":  tokenResp.Athlete.ID,
 	}
-	responseBody, _ = json.Marshal(response)
+	finalResponseBody, _ := json.Marshal(response)
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(responseBody)
+	w.Write(finalResponseBody)
 	return
 }
 
